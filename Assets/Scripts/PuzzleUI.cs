@@ -1,7 +1,8 @@
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using TMPro;
 
 public class PuzzleUI : MonoBehaviour
@@ -12,14 +13,37 @@ public class PuzzleUI : MonoBehaviour
     [SerializeField] private int digitMax   = 9;
 
     [Header("Clue UI")]
-    [SerializeField] private Transform cluesContainer;  // Vertical layout parent
-    [SerializeField] private GameObject clueRowPrefab;  // ClueRow prefab
-    [SerializeField] private GameObject slotCellPrefab; // SlotCell prefab
+    [SerializeField] private Transform  cluesContainer;
+    [SerializeField] private GameObject clueRowPrefab;
+    [SerializeField] private GameObject slotCellPrefab;
 
     [Header("Input UI")]
-    [SerializeField] private Transform inputSlotsGroup; // Horizontal layout parent for input slots
-    [SerializeField] private TextMeshProUGUI feedbackText;
-    [SerializeField] private TextMeshProUGUI answerText;
+    [SerializeField] private Transform          inputSlotsGroup;
+    [SerializeField] private TextMeshProUGUI    feedbackText;
+    [SerializeField] private TextMeshProUGUI    answerText;
+
+    [Header("Regen")]
+    [SerializeField] private GameObject      regenTimerRow;
+    [SerializeField] private TextMeshProUGUI regenTimerText;
+
+    [Header("HUD — Lives (3 heart images)")]
+    [SerializeField] private Image[] heartImages;
+
+    [Header("HUD — Lightning (3 bolt images + timer)")]
+    [SerializeField] private Image[]         lightningImages;
+    [SerializeField] private TextMeshProUGUI timerText;
+
+    [Header("HUD — Currency")]
+    [SerializeField] private TextMeshProUGUI totalLightningText;
+    [SerializeField] private TextMeshProUGUI diamondText;
+
+    [Header("No Lives Panel")]
+    [SerializeField] private GameObject      noLivesPanel;
+    [SerializeField] private TextMeshProUGUI noLivesTimerText;
+
+    [Header("Icon Colors")]
+    [SerializeField] private Color iconActiveColor   = Color.white;
+    [SerializeField] private Color iconInactiveColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
 
     [Header("Input Slot Colors")]
     [SerializeField] private Color slotNormalColor   = new Color(0.2f, 0.2f, 0.4f);
@@ -27,73 +51,129 @@ public class PuzzleUI : MonoBehaviour
     [SerializeField] private Color slotFilledColor   = new Color(0.2f, 0.5f, 0.8f);
     [SerializeField] private Color slotLockedColor   = new Color(0.4f, 0.4f, 0.5f);
 
-    private List<int> _secret;
-    private int[] _slotValues;
-    private int _selectedSlot = 0;
-    private bool _submitted   = false;
+    private List<int>  _secret       = new List<int>();
+    private int[]      _slotValues;
+    private int        _selectedSlot = 0;
+    private bool       _submitted    = false;
+    private bool       _skipPending  = false;
 
-    // Runtime references
     private List<SlotCell> _inputSlots = new List<SlotCell>();
     private List<ClueRow>  _clueRows   = new List<ClueRow>();
+
+    // -------------------------------------------------------------------
+    // Lifecycle
+    // -------------------------------------------------------------------
 
     void Start()
     {
         codeLength = PlayerPrefs.GetInt("CodeLength", codeLength);
+
+        if (LivesManager.Instance != null)
+            LivesManager.Instance.OnLivesChanged += UpdateHeartsHUD;
+
+        if (LightningManager.Instance != null)
+        {
+            LightningManager.Instance.OnLightningChanged += UpdateLightningHUD;
+            LightningManager.Instance.OnTimerTick        += UpdateTimerHUD;
+        }
+
+        if (CurrencyManager.Instance != null)
+            CurrencyManager.Instance.OnCurrencyChanged += UpdateCurrencyHUD;
+
+        noLivesPanel.SetActive(false);
+        CheckLivesAndStart();
+        StartCoroutine(RegenTimerLoop());
+    }
+
+    void OnDestroy()
+    {
+        if (LivesManager.Instance != null)
+            LivesManager.Instance.OnLivesChanged -= UpdateHeartsHUD;
+
+        if (LightningManager.Instance != null)
+        {
+            LightningManager.Instance.OnLightningChanged -= UpdateLightningHUD;
+            LightningManager.Instance.OnTimerTick        -= UpdateTimerHUD;
+        }
+
+        if (CurrencyManager.Instance != null)
+            CurrencyManager.Instance.OnCurrencyChanged -= UpdateCurrencyHUD;
+    }
+
+    // -------------------------------------------------------------------
+    // Lives gate
+    // -------------------------------------------------------------------
+
+    private void CheckLivesAndStart()
+    {
+        if (LivesManager.Instance != null && !LivesManager.Instance.HasLives())
+        {
+            noLivesPanel.SetActive(true);
+            StartCoroutine(NoLivesCountdown());
+            return;
+        }
+
+        noLivesPanel.SetActive(false);
+        UpdateHeartsHUD(LivesManager.Instance?.CurrentLives ?? LivesManager.MaxLives);
+        UpdateCurrencyHUD(
+            CurrencyManager.Instance?.TotalLightning ?? 0,
+            CurrencyManager.Instance?.TotalDiamonds  ?? 0);
+
         GeneratePuzzle();
     }
 
+    // -------------------------------------------------------------------
+    // Puzzle generation
+    // -------------------------------------------------------------------
+
     private void GeneratePuzzle()
     {
-        _submitted = false;
+        _submitted   = false;
+        _skipPending = false;
         feedbackText.text = "";
         answerText.text   = "";
 
-        // Destroy old clue rows
-        foreach (Transform child in cluesContainer) Destroy(child.gameObject);
+        foreach (Transform c in cluesContainer) Destroy(c.gameObject);
         _clueRows.Clear();
 
-        // Destroy old input slots
-        foreach (Transform child in inputSlotsGroup) Destroy(child.gameObject);
+        foreach (Transform c in inputSlotsGroup) Destroy(c.gameObject);
         _inputSlots.Clear();
 
-        // Generate puzzle
         var maker   = new CodeMaker(codeLength, digitMin, digitMax);
         var builder = new ClueBuilder(maker, codeLength, digitMin, digitMax);
         _secret     = new List<int>(maker.Secret);
-        List<ClueData> clues = builder.Build(out _);
+        var clues   = builder.Build(out _);
 
         Debug.Log($"[PuzzleUI] Secret: {string.Join(" ", _secret)} | Clues: {clues.Count}");
 
-        // Instantiate clue rows
         foreach (ClueData clue in clues)
         {
-            GameObject rowObj = Instantiate(clueRowPrefab, cluesContainer);
-            ClueRow row       = rowObj.GetComponent<ClueRow>();
+            var rowObj = Instantiate(clueRowPrefab, cluesContainer);
+            var row    = rowObj.GetComponent<ClueRow>();
             row.Populate(clue, slotCellPrefab);
             _clueRows.Add(row);
         }
 
-        // Instantiate input slots dynamically
         _slotValues = new int[codeLength];
         for (int i = 0; i < codeLength; i++)
         {
             _slotValues[i] = -1;
-
-            GameObject obj = Instantiate(slotCellPrefab, inputSlotsGroup);
-            SlotCell slot  = obj.GetComponent<SlotCell>();
-
+            var obj  = Instantiate(slotCellPrefab, inputSlotsGroup);
+            var slot = obj.GetComponent<SlotCell>();
             slot.Label.text = "_";
-
-            // Wire click to SelectSlot — capture index for lambda
-            int index = i;
-            slot.Button.onClick.AddListener(() => SelectSlot(index));
-
+            int idx = i;
+            slot.Button.onClick.AddListener(() => SelectSlot(idx));
             _inputSlots.Add(slot);
         }
 
         SelectSlot(0);
         RefreshInputSlots();
+        LightningManager.Instance?.StartPuzzle(codeLength);
     }
+
+    // -------------------------------------------------------------------
+    // Input
+    // -------------------------------------------------------------------
 
     public void SelectSlot(int index)
     {
@@ -110,27 +190,20 @@ public class PuzzleUI : MonoBehaviour
         RefreshInputSlots();
     }
 
-    // Clears input slots AND resets all clue slot colors.
     public void ClearAll()
     {
         if (_submitted) return;
-
-        // Reset input
         for (int i = 0; i < codeLength; i++) _slotValues[i] = -1;
         feedbackText.text = "";
         SelectSlot(0);
         RefreshInputSlots();
-
-        // Reset clue slot annotation colors
-        foreach (ClueRow row in _clueRows)
-            row.ResetColors();
+        foreach (var row in _clueRows) row.ResetColors();
     }
 
     public void SubmitGuess()
     {
         if (_submitted) return;
 
-        // Block if any slot empty
         for (int i = 0; i < codeLength; i++)
         {
             if (_slotValues[i] == -1)
@@ -138,7 +211,7 @@ public class PuzzleUI : MonoBehaviour
                 feedbackText.text = $"Fill all {codeLength} slots first!";
                 SelectSlot(i);
                 StopAllCoroutines();
-                StartCoroutine(ClearMessageAfterDelay(feedbackText, 2f));
+                StartCoroutine(ClearAfterDelay(feedbackText, 2f));
                 return;
             }
         }
@@ -149,44 +222,158 @@ public class PuzzleUI : MonoBehaviour
         for (int i = 0; i < codeLength; i++)
             if (_slotValues[i] != _secret[i]) { correct = false; break; }
 
-        answerText.text   = "Secret:  " + string.Join("  ", _secret);
-        feedbackText.text = correct ? "** YOU WIN! **" : "** WRONG! Better luck next time. **";
+        answerText.text = "Secret:  " + string.Join("  ", _secret);
+
+        if (correct)
+        {
+            int earned = LightningManager.Instance?.StopAndCollect() ?? 0;
+            CurrencyManager.Instance?.AddLightning(earned);
+            feedbackText.text = $"YOU WIN!  +{earned} lightning";
+        }
+        else
+        {
+            LightningManager.Instance?.StopNoReward();
+            LivesManager.Instance?.LoseLife();
+            feedbackText.text = "WRONG! Better luck next time.";
+        }
 
         RefreshInputSlots();
     }
 
     public void NewPuzzle()
     {
-        GeneratePuzzle();
+        if (_skipPending) return;
+
+        if (!_submitted)
+        {
+            _skipPending = true;
+            LightningManager.Instance?.StopNoReward();
+            LivesManager.Instance?.LoseLife();
+            feedbackText.text = "Skipped! -1 life";
+            StartCoroutine(DelayThen(1.5f, CheckLivesAndStart));
+        }
+        else
+        {
+            CheckLivesAndStart();
+        }
     }
+
+    public void GoToMainMenu()
+    {
+        LightningManager.Instance?.StopNoReward();
+        if (!_submitted)
+            LivesManager.Instance?.LoseLife();
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    // -------------------------------------------------------------------
+    // HUD Updates
+    // -------------------------------------------------------------------
+
+    private void UpdateHeartsHUD(int lives)
+    {
+        for (int i = 0; i < heartImages.Length; i++)
+            heartImages[i].color = i < lives ? iconActiveColor : iconInactiveColor;
+    }
+
+    private void UpdateLightningHUD(int lightning)
+    {
+        for (int i = 0; i < lightningImages.Length; i++)
+            lightningImages[i].color = i < lightning ? iconActiveColor : iconInactiveColor;
+    }
+
+    private void UpdateTimerHUD(float elapsed, float total)
+    {
+        if (timerText == null) return;
+        float remaining = Mathf.Max(0f, total - elapsed);
+        timerText.text  = $"{Mathf.FloorToInt(remaining / 60f)}:{Mathf.FloorToInt(remaining % 60f):D2}";
+    }
+
+    private void UpdateCurrencyHUD(int lightning, int diamonds)
+    {
+        if (totalLightningText != null) totalLightningText.text = lightning.ToString();
+        if (diamondText != null)        diamondText.text        = diamonds.ToString();
+    }
+
+    // -------------------------------------------------------------------
+    // Coroutines
+    // -------------------------------------------------------------------
+
+    // Runs every second — keeps regen timer text live and checks for new lives.
+    private IEnumerator RegenTimerLoop()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(1f);
+            LivesManager.Instance?.LoadAndRegen();
+
+            if (LivesManager.Instance != null &&
+                LivesManager.Instance.CurrentLives < LivesManager.MaxLives)
+            {
+                var t = LivesManager.Instance.TimeUntilNextLife();
+                if (regenTimerText != null)
+                    regenTimerText.text = $"Next Life: {t.Minutes:D2}:{t.Seconds:D2}";
+            }
+            else
+            {
+                if (regenTimerText != null) regenTimerText.text = "";
+            }
+        }
+    }
+
+    private IEnumerator NoLivesCountdown()
+    {
+        while (LivesManager.Instance != null && !LivesManager.Instance.HasLives())
+        {
+            var t = LivesManager.Instance.TimeUntilNextLife();
+
+            if (t.TotalSeconds <= 0)
+            {
+                LivesManager.Instance.LoadAndRegen();
+                SceneManager.LoadScene("MainMenu");
+                yield break;
+            }
+
+            if (noLivesTimerText != null)
+                noLivesTimerText.text = $"Next Life in {t.Minutes:D2}:{t.Seconds:D2}";
+
+            yield return new WaitForSeconds(1f);
+            LivesManager.Instance.LoadAndRegen();
+        }
+
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    private IEnumerator DelayThen(float seconds, System.Action callback)
+    {
+        yield return new WaitForSeconds(seconds);
+        callback?.Invoke();
+    }
+
+    private IEnumerator ClearAfterDelay(TextMeshProUGUI label, float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        label.text = "";
+    }
+
+    // -------------------------------------------------------------------
+    // Slot visuals
+    // -------------------------------------------------------------------
 
     private void RefreshInputSlots()
     {
         for (int i = 0; i < _inputSlots.Count; i++)
         {
             bool isSelected = (i == _selectedSlot) && !_submitted;
-            bool isFilled   = (_slotValues[i] != -1);
+            bool isFilled   = _slotValues[i] != -1;
 
             _inputSlots[i].Label.text = isFilled ? _slotValues[i].ToString() : "_";
 
-            Color targetColor = _submitted ? slotLockedColor
-                              : isSelected ? slotSelectedColor
-                              : isFilled   ? slotFilledColor
-                              : slotNormalColor;
-
-            _inputSlots[i].SetColor(targetColor);
+            _inputSlots[i].SetColor(
+                _submitted  ? slotLockedColor  :
+                isSelected  ? slotSelectedColor :
+                isFilled    ? slotFilledColor   :
+                              slotNormalColor);
         }
-    }
-
-    private System.Collections.IEnumerator ClearMessageAfterDelay(TextMeshProUGUI label, float seconds)
-    {
-        yield return new WaitForSeconds(seconds);
-        label.text = "";
-    }
-
-    // Called by Main Menu button.
-    public void GoToMainMenu()
-    {
-        SceneManager.LoadScene("MainMenu");
     }
 }
