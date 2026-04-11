@@ -23,7 +23,6 @@ public class PuzzleUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI    answerText;
 
     [Header("Regen")]
-    [SerializeField] private GameObject      regenTimerRow;
     [SerializeField] private TextMeshProUGUI regenTimerText;
 
     [Header("HUD — Lives (3 heart images)")]
@@ -227,14 +226,16 @@ public class PuzzleUI : MonoBehaviour
         if (correct)
         {
             int earned = LightningManager.Instance?.StopAndCollect() ?? 0;
-            CurrencyManager.Instance?.AddLightning(earned);
-            feedbackText.text = $"YOU WIN!  +{earned} lightning";
+            CurrencyManager.Instance?.AddLightning(earned);  // +earned ⚡ (auto-converts at 10)
+            CurrencyManager.Instance?.AddDiamonds(1);        // +1 💎 for winning
+            feedbackText.text = $"YOU WIN!  +{earned}⚡  +1💎";
         }
         else
         {
             LightningManager.Instance?.StopNoReward();
             LivesManager.Instance?.LoseLife();
-            feedbackText.text = "WRONG! Better luck next time.";
+            CurrencyManager.Instance?.SpendLightning(1);     // -1 ⚡ penalty for losing
+            feedbackText.text = "WRONG! Better luck next time.  -1⚡";
         }
 
         RefreshInputSlots();
@@ -249,7 +250,8 @@ public class PuzzleUI : MonoBehaviour
             _skipPending = true;
             LightningManager.Instance?.StopNoReward();
             LivesManager.Instance?.LoseLife();
-            feedbackText.text = "Skipped! -1 life";
+            CurrencyManager.Instance?.SpendLightning(1);     // -1 ⚡ penalty for skipping
+            feedbackText.text = "Skipped! -1 life  -1⚡";
             StartCoroutine(DelayThen(1.5f, CheckLivesAndStart));
         }
         else
@@ -286,7 +288,10 @@ public class PuzzleUI : MonoBehaviour
     {
         if (timerText == null) return;
         float remaining = Mathf.Max(0f, total - elapsed);
-        timerText.text  = $"{Mathf.FloorToInt(remaining / 60f)}:{Mathf.FloorToInt(remaining % 60f):D2}";
+        if (remaining <= 0f) { timerText.text = "No Bonus"; return; }
+        int mins = Mathf.FloorToInt(remaining / 60f);
+        int secs = Mathf.FloorToInt(remaining % 60f);
+        timerText.text = mins + ":" + secs.ToString("D2");    
     }
 
     private void UpdateCurrencyHUD(int lightning, int diamonds)

@@ -17,9 +17,6 @@ Wild_BurstDebugInformation_DoNotShip/
 .utmp/
 
 # Unity generated meta files
-*.pidb.meta
-*.pdb.meta
-*.mdb.meta
 *.pidb
 *.pdb
 *.mdb

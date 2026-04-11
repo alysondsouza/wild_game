@@ -23,6 +23,7 @@ public class CurrencyManager : MonoBehaviour
         TotalDiamonds  = PlayerPrefs.GetInt("Diamonds",  0);
     }
 
+    // Call on win — adds lightning and auto-converts every 10 ⚡ → 1 💎.
     public void AddLightning(int amount)
     {
         if (amount <= 0) return;
@@ -35,6 +36,24 @@ public class CurrencyManager : MonoBehaviour
             TotalLightning %= LightningPerDiamond;
         }
 
+        Save();
+        OnCurrencyChanged?.Invoke(TotalLightning, TotalDiamonds);
+    }
+
+    // Call on win — always grants 1 gem directly.
+    public void AddDiamonds(int amount)
+    {
+        if (amount <= 0) return;
+        TotalDiamonds += amount;
+        Save();
+        OnCurrencyChanged?.Invoke(TotalLightning, TotalDiamonds);
+    }
+
+    // Call on loss/skip — removes lightning if available, never goes below 0.
+    public void SpendLightning(int amount)
+    {
+        if (amount <= 0) return;
+        TotalLightning = Mathf.Max(0, TotalLightning - amount);
         Save();
         OnCurrencyChanged?.Invoke(TotalLightning, TotalDiamonds);
     }

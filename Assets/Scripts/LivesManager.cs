@@ -8,7 +8,7 @@ public class LivesManager : MonoBehaviour
     public static LivesManager Instance { get; private set; }
 
     public const int MaxLives     = 3;
-    public const int RegenSeconds = 10; // Change this value to adjust regen time
+    public const int RegenSeconds = 60; // Change this value to adjust regen time
 
     public event Action<int> OnLivesChanged;
 

@@ -2,13 +2,13 @@ using System;
 using UnityEngine;
 
 // Manages the per-puzzle lightning timer.
-// Durations: 30s/45s/60s/90s/120s for code lengths 3-7.
+// Durations: 2min/4min/6.5min/9min/12min for code lengths 3-7.
 // Loses 1 lightning at each 1/3 of total time elapsed.
 public class LightningManager : MonoBehaviour
 {
     public static LightningManager Instance { get; private set; }
 
-    private static readonly float[] TimerByLength = { 30f, 45f, 60f, 90f, 120f };
+    private static readonly float[] TimerByLength = { 120f, 240f, 390f, 540f, 720f };
 
     public event Action<int>         OnLightningChanged; // current puzzle lightning (0-3)
     public event Action<float, float> OnTimerTick;       // (elapsed, total)
