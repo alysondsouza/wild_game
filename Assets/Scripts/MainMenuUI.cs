@@ -6,7 +6,7 @@ using TMPro;
 
 // Drives the Main Menu scene.
 // Shows lives, regen timer, currency in TopBar.
-// Saves CodeLength to PlayerPrefs before loading PuzzleScene.
+// Saves CodeLength and GameMode to PlayerPrefs before loading the correct scene.
 public class MainMenuUI : MonoBehaviour
 {
     [Header("Mode Buttons")]
@@ -29,10 +29,13 @@ public class MainMenuUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI diamondText;
 
     [Header("Colors")]
-    [SerializeField] private Color modeActiveColor   = new Color(0.15f, 0.25f, 0.7f);
-    [SerializeField] private Color modeDisabledColor = new Color(0.4f,  0.4f,  0.4f);
+    [SerializeField] private Color modeActiveColor   = new Color(0.78f, 0.86f, 1f);
+    [SerializeField] private Color modeInactiveColor = new Color(0.63f, 0.63f, 0.63f);
     [SerializeField] private Color iconActiveColor   = Color.white;
     [SerializeField] private Color iconInactiveColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+
+    // "Puzzle" or "Classic"
+    private string _selectedMode = "Puzzle";
 
     private void Start()
     {
@@ -44,10 +47,13 @@ public class MainMenuUI : MonoBehaviour
         UpdateLengthLabel(lengthSlider.value);
         lengthSlider.onValueChanged.AddListener(UpdateLengthLabel);
 
-        // Mode buttons
-        classicButton.interactable = false;
-        SetButtonColor(classicButton, modeDisabledColor);
-        SetButtonColor(puzzleButton, modeActiveColor);
+        // Mode buttons — both enabled, highlight current selection
+        puzzleButton.onClick.AddListener(() => SelectMode("Puzzle"));
+        classicButton.onClick.AddListener(() => SelectMode("Classic"));
+
+        // Restore last selected mode
+        _selectedMode = PlayerPrefs.GetString("GameMode", "Puzzle");
+        HighlightModeButtons();
 
         // Play button
         playButton.onClick.AddListener(StartGame);
@@ -59,10 +65,7 @@ public class MainMenuUI : MonoBehaviour
         if (CurrencyManager.Instance != null)
             CurrencyManager.Instance.OnCurrencyChanged += OnCurrencyChanged;
 
-        // Initial HUD refresh
         RefreshHUD();
-
-        // Update regen timer every second
         StartCoroutine(HUDUpdateLoop());
     }
 
@@ -75,8 +78,48 @@ public class MainMenuUI : MonoBehaviour
             CurrencyManager.Instance.OnCurrencyChanged -= OnCurrencyChanged;
     }
 
-    private void OnLivesChanged(int lives) => RefreshHUD();
-    private void OnCurrencyChanged(int lightning, int diamonds) => RefreshHUD();
+    // -------------------------------------------------------------------
+    // Mode selection
+    // -------------------------------------------------------------------
+
+    private void SelectMode(string mode)
+    {
+        _selectedMode = mode;
+        HighlightModeButtons();
+    }
+
+    private void HighlightModeButtons()
+    {
+        SetButtonColor(puzzleButton,  _selectedMode == "Puzzle"  ? modeActiveColor : modeInactiveColor);
+        SetButtonColor(classicButton, _selectedMode == "Classic" ? modeActiveColor : modeInactiveColor);
+    }
+
+    // -------------------------------------------------------------------
+    // Start game
+    // -------------------------------------------------------------------
+
+    private void StartGame()
+    {
+        if (LivesManager.Instance != null && !LivesManager.Instance.HasLives())
+        {
+            Debug.Log("[MainMenu] No lives — can't start.");
+            return;
+        }
+
+        PlayerPrefs.SetInt("CodeLength", (int)lengthSlider.value);
+        PlayerPrefs.SetString("GameMode", _selectedMode);
+        PlayerPrefs.Save();
+
+        string scene = _selectedMode == "Classic" ? "ClassicScene" : "PuzzleScene";
+        SceneManager.LoadScene(scene);
+    }
+
+    // -------------------------------------------------------------------
+    // HUD
+    // -------------------------------------------------------------------
+
+    private void OnLivesChanged(int lives)    => RefreshHUD();
+    private void OnCurrencyChanged(int l, int d) => RefreshHUD();
 
     private void RefreshHUD()
     {
@@ -84,11 +127,9 @@ public class MainMenuUI : MonoBehaviour
 
         int lives = LivesManager.Instance.CurrentLives;
 
-        // Hearts
         for (int i = 0; i < heartImages.Length; i++)
             heartImages[i].color = i < lives ? iconActiveColor : iconInactiveColor;
 
-        // Regen timer
         if (lives < LivesManager.MaxLives)
         {
             var t = LivesManager.Instance.TimeUntilNextLife();
@@ -97,11 +138,9 @@ public class MainMenuUI : MonoBehaviour
         }
         else
         {
-            if (regenTimerText != null)
-                regenTimerText.text = "";
+            if (regenTimerText != null) regenTimerText.text = "";
         }
 
-        // Currency
         if (CurrencyManager.Instance != null)
         {
             if (totalLightningText != null)
@@ -121,30 +160,19 @@ public class MainMenuUI : MonoBehaviour
         }
     }
 
+    // -------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------
+
     private void UpdateLengthLabel(float value)
     {
         lengthLabel.text = ((int)value).ToString();
     }
 
-    private void StartGame()
-    {
-        if (LivesManager.Instance != null && !LivesManager.Instance.HasLives())
-        {
-            Debug.Log("[MainMenu] No lives — can't start.");
-            return;
-        }
-
-        PlayerPrefs.SetInt("CodeLength", (int)lengthSlider.value);
-        PlayerPrefs.SetString("GameMode", "Puzzle");
-        PlayerPrefs.Save();
-        SceneManager.LoadScene("PuzzleScene");
-    }
-
     private void SetButtonColor(Button btn, Color color)
     {
-        var colors           = btn.colors;
-        colors.normalColor   = color;
-        colors.disabledColor = modeDisabledColor;
-        btn.colors           = colors;
+        var colors         = btn.colors;
+        colors.normalColor = color;
+        btn.colors         = colors;
     }
 }

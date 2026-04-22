@@ -204,7 +204,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -509,8 +509,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
-        m_MethodName: NewPuzzle
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
+        m_MethodName: NewGame
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -663,7 +663,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -1811,7 +1811,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -3102,7 +3102,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -3615,7 +3615,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -3850,7 +3850,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: ClearAll
         m_Mode: 1
         m_Arguments:
@@ -4240,7 +4240,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -4968,7 +4968,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -5670,7 +5670,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -5817,7 +5817,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -6122,7 +6122,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: SubmitGuess
         m_Mode: 1
         m_Arguments:
@@ -6373,19 +6373,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 1728867047}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d5306ba4733bba747bdac6ad8ace0faa, type: 3}
+  m_Script: {fileID: 11500000, guid: 0241c430029e7fc4da588e4618962f81, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PuzzleUI
+  m_EditorClassIdentifier: Assembly-CSharp::ClassicUI
   codeLength: 4
-  digitMin: 0
-  digitMax: 9
-  cluesContainer: {fileID: 1811773069}
-  clueRowPrefab: {fileID: 5856668923039765784, guid: e0d33ddfe2939734b82017e9015517fe, type: 3}
+  historyContainer: {fileID: 1811773069}
+  historyScrollRect: {fileID: 0}
+  historyRowPrefab: {fileID: 5856668923039765784, guid: fb575c34e00002744a29428d58c81acd, type: 3}
   slotCellPrefab: {fileID: 1363740597356068270, guid: 80672178f3d10c743aae297c99e10e42, type: 3}
   inputSlotsGroup: {fileID: 415983871}
   feedbackText: {fileID: 1628818531}
   answerText: {fileID: 619486159}
-  regenTimerText: {fileID: 1438699732}
+  guessCounterText: {fileID: 1222982836}
   heartImages:
   - {fileID: 1089691351}
   - {fileID: 975418839}
@@ -6399,12 +6398,13 @@ MonoBehaviour:
   diamondText: {fileID: 754930733}
   noLivesPanel: {fileID: 714872944}
   noLivesTimerText: {fileID: 399803898}
+  regenTimerText: {fileID: 1438699732}
   iconActiveColor: {r: 1, g: 1, b: 1, a: 1}
   iconInactiveColor: {r: 0.3, g: 0.3, b: 0.3, a: 0.5}
-  slotNormalColor: {r: 0.78431374, g: 0.8627451, b: 1, a: 1}
-  slotSelectedColor: {r: 1, g: 0.9607843, b: 0.78431374, a: 1}
-  slotFilledColor: {r: 0.6666667, g: 0.78431374, b: 0.9411765, a: 1}
-  slotLockedColor: {r: 0.627451, g: 0.627451, b: 0.627451, a: 1}
+  slotNormalColor: {r: 0.2, g: 0.2, b: 0.4, a: 1}
+  slotSelectedColor: {r: 0.9, g: 0.7, b: 0.1, a: 1}
+  slotFilledColor: {r: 0.2, g: 0.5, b: 0.8, a: 1}
+  slotLockedColor: {r: 0.4, g: 0.4, b: 0.5, a: 1}
 --- !u!1 &1731909093
 GameObject:
   m_ObjectHideFlags: 0
@@ -6669,7 +6669,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: AddDigit
         m_Mode: 3
         m_Arguments:
@@ -7336,7 +7336,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1728867049}
-        m_TargetAssemblyTypeName: PuzzleUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: ClassicUI, Assembly-CSharp
         m_MethodName: GoToMainMenu
         m_Mode: 1
         m_Arguments:
