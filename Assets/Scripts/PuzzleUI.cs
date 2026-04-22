@@ -56,8 +56,14 @@ public class PuzzleUI : MonoBehaviour
     private bool       _submitted    = false;
     private bool       _skipPending  = false;
 
-    private List<SlotCell> _inputSlots = new List<SlotCell>();
-    private List<ClueRow>  _clueRows   = new List<ClueRow>();
+    private List<SlotCell>      _inputSlots      = new List<SlotCell>();
+    private List<ClueRow>       _clueRows        = new List<ClueRow>();
+
+    // Cached long press buttons — used in AddDigit to suppress digit insert after long press.
+    private LongPressButton[]   _longPressButtons = new LongPressButton[0];
+
+    // Tracks the current annotation color index per digit (0–9) for bulk painting.
+    private int[] _digitColorIndex = new int[10];
 
     // -------------------------------------------------------------------
     // Lifecycle
@@ -78,6 +84,8 @@ public class PuzzleUI : MonoBehaviour
 
         if (CurrencyManager.Instance != null)
             CurrencyManager.Instance.OnCurrencyChanged += UpdateCurrencyHUD;
+
+        RegisterLongPressHandlers();
 
         noLivesPanel.SetActive(false);
         CheckLivesAndStart();
@@ -132,6 +140,8 @@ public class PuzzleUI : MonoBehaviour
         feedbackText.text = "";
         answerText.text   = "";
 
+        System.Array.Clear(_digitColorIndex, 0, _digitColorIndex.Length);
+
         foreach (Transform c in cluesContainer) Destroy(c.gameObject);
         _clueRows.Clear();
 
@@ -142,8 +152,6 @@ public class PuzzleUI : MonoBehaviour
         var builder = new ClueBuilder(maker, codeLength, digitMin, digitMax);
         _secret     = new List<int>(maker.Secret);
         var clues   = builder.Build(out _);
-
-        Debug.Log($"[PuzzleUI] Secret: {string.Join(" ", _secret)} | Clues: {clues.Count}");
 
         foreach (ClueData clue in clues)
         {
@@ -184,6 +192,13 @@ public class PuzzleUI : MonoBehaviour
     public void AddDigit(int digit)
     {
         if (_submitted) return;
+
+        // If any long press button just fired, suppress the digit insert.
+        // The long press already did its job (bulk paint) — we don't also want
+        // the digit to land in the answer slot on the same PointerUp.
+        foreach (var lpb in _longPressButtons)
+            if (lpb.LongPressConsumed) return;
+
         _slotValues[_selectedSlot] = digit;
         _selectedSlot = (_selectedSlot + 1) % codeLength;
         RefreshInputSlots();
@@ -197,6 +212,7 @@ public class PuzzleUI : MonoBehaviour
         SelectSlot(0);
         RefreshInputSlots();
         foreach (var row in _clueRows) row.ResetColors();
+        System.Array.Clear(_digitColorIndex, 0, _digitColorIndex.Length);
     }
 
     public void SubmitGuess()
@@ -226,15 +242,15 @@ public class PuzzleUI : MonoBehaviour
         if (correct)
         {
             int earned = LightningManager.Instance?.StopAndCollect() ?? 0;
-            CurrencyManager.Instance?.AddLightning(earned);  // +earned ⚡ (auto-converts at 10)
-            CurrencyManager.Instance?.AddDiamonds(1);        // +1 💎 for winning
+            CurrencyManager.Instance?.AddLightning(earned);
+            CurrencyManager.Instance?.AddDiamonds(1);
             feedbackText.text = $"YOU WIN!  +{earned}⚡  +1💎";
         }
         else
         {
             LightningManager.Instance?.StopNoReward();
             LivesManager.Instance?.LoseLife();
-            CurrencyManager.Instance?.SpendLightning(1);     // -1 ⚡ penalty for losing
+            CurrencyManager.Instance?.SpendLightning(1);
             feedbackText.text = "WRONG! Better luck next time.  -1⚡";
         }
 
@@ -250,7 +266,7 @@ public class PuzzleUI : MonoBehaviour
             _skipPending = true;
             LightningManager.Instance?.StopNoReward();
             LivesManager.Instance?.LoseLife();
-            CurrencyManager.Instance?.SpendLightning(1);     // -1 ⚡ penalty for skipping
+            CurrencyManager.Instance?.SpendLightning(1);
             feedbackText.text = "Skipped! -1 life  -1⚡";
             StartCoroutine(DelayThen(1.5f, CheckLivesAndStart));
         }
@@ -266,6 +282,38 @@ public class PuzzleUI : MonoBehaviour
         if (!_submitted)
             LivesManager.Instance?.LoseLife();
         SceneManager.LoadScene("MainMenu");
+    }
+
+    // -------------------------------------------------------------------
+    // Bulk paint — long press on digit button
+    // -------------------------------------------------------------------
+
+    private void RegisterLongPressHandlers()
+    {
+        _longPressButtons = FindObjectsByType<LongPressButton>(FindObjectsSortMode.None);
+
+        foreach (var lpb in _longPressButtons)
+        {
+            var label = lpb.GetComponentInChildren<TextMeshProUGUI>();
+            if (label == null) continue;
+            if (!int.TryParse(label.text, out int digit)) continue;
+
+            int captured = digit;
+            lpb.OnLongPress += () => BulkPaintDigit(captured);
+        }
+    }
+
+    // Advances the annotation color of ALL clue slots showing this digit by one step.
+    private void BulkPaintDigit(int digit)
+    {
+        if (_submitted) return;
+
+        _digitColorIndex[digit] = (_digitColorIndex[digit] + 1) % 5;
+        int targetIndex = _digitColorIndex[digit];
+
+        foreach (var row in _clueRows)
+            foreach (var slot in row.GetSlotsWithDigit(digit))
+                slot.SetColorIndex(targetIndex);
     }
 
     // -------------------------------------------------------------------
@@ -291,7 +339,7 @@ public class PuzzleUI : MonoBehaviour
         if (remaining <= 0f) { timerText.text = "No Bonus"; return; }
         int mins = Mathf.FloorToInt(remaining / 60f);
         int secs = Mathf.FloorToInt(remaining % 60f);
-        timerText.text = mins + ":" + secs.ToString("D2");    
+        timerText.text = mins + ":" + secs.ToString("D2");
     }
 
     private void UpdateCurrencyHUD(int lightning, int diamonds)
@@ -304,7 +352,6 @@ public class PuzzleUI : MonoBehaviour
     // Coroutines
     // -------------------------------------------------------------------
 
-    // Runs every second — keeps regen timer text live and checks for new lives.
     private IEnumerator RegenTimerLoop()
     {
         while (true)
