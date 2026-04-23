@@ -5,11 +5,6 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-// Drives the Classic Mode scene.
-// Player has MaxGuesses attempts to guess the secret code.
-// After each guess: feedback is shown as a history row.
-// Long press on digit button paints all matching digits in history rows.
-// Same lives/lightning/currency system as PuzzleUI.
 public class ClassicUI : MonoBehaviour
 {
     private const int MaxGuesses = 10;
@@ -26,8 +21,10 @@ public class ClassicUI : MonoBehaviour
     [Header("Input UI")]
     [SerializeField] private Transform          inputSlotsGroup;
     [SerializeField] private TextMeshProUGUI    feedbackText;
-    [SerializeField] private TextMeshProUGUI    answerText;
     [SerializeField] private TextMeshProUGUI    guessCounterText;
+
+    [Header("Result Card")]
+    [SerializeField] private ResultCard         resultCard;
 
     [Header("HUD — Lives")]
     [SerializeField] private Image[]            heartImages;
@@ -57,20 +54,16 @@ public class ClassicUI : MonoBehaviour
     [SerializeField] private Color slotFilledColor   = new Color(0.2f, 0.5f, 0.8f);
     [SerializeField] private Color slotLockedColor   = new Color(0.4f, 0.4f, 0.5f);
 
-    private List<int>           _secret           = new List<int>();
-    private int[]               _slotValues;
-    private int                 _selectedSlot     = 0;
-    private bool                _submitted        = false;
-    private int                 _guessCount       = 0;
+    private List<int>               _secret           = new List<int>();
+    private int[]                   _slotValues;
+    private int                     _selectedSlot     = 0;
+    private bool                    _submitted        = false;
+    private int                     _guessCount       = 0;
 
     private List<SlotCell>          _inputSlots       = new List<SlotCell>();
     private List<GuessHistoryRow>   _historyRows      = new List<GuessHistoryRow>();
-
-    // Cached long press buttons — suppresses digit insert on long press release.
-    private LongPressButton[]   _longPressButtons = new LongPressButton[0];
-
-    // Tracks annotation color index per digit (0–9) across all history rows.
-    private int[] _digitColorIndex = new int[10];
+    private LongPressButton[]       _longPressButtons = new LongPressButton[0];
+    private int[]                   _digitColorIndex  = new int[10];
 
     // -------------------------------------------------------------------
     // Lifecycle
@@ -93,6 +86,11 @@ public class ClassicUI : MonoBehaviour
             CurrencyManager.Instance.OnCurrencyChanged += UpdateCurrencyHUD;
 
         RegisterLongPressHandlers();
+
+        // Play Again = new game, Main Menu = no life penalty
+        resultCard?.Init(
+            onPlayAgain: () => CheckLivesAndStart(),
+            onMainMenu:  () => SceneManager.LoadScene("MainMenu"));
 
         noLivesPanel.SetActive(false);
         CheckLivesAndStart();
@@ -146,7 +144,6 @@ public class ClassicUI : MonoBehaviour
         _guessCount = 0;
 
         feedbackText.text = "";
-        answerText.text   = "";
 
         System.Array.Clear(_digitColorIndex, 0, _digitColorIndex.Length);
 
@@ -194,7 +191,6 @@ public class ClassicUI : MonoBehaviour
     {
         if (_submitted) return;
 
-        // Suppress insert if this was a long press release.
         foreach (var lpb in _longPressButtons)
             if (lpb.LongPressConsumed) return;
 
@@ -244,9 +240,8 @@ public class ClassicUI : MonoBehaviour
             int earned = LightningManager.Instance?.StopAndCollect() ?? 0;
             CurrencyManager.Instance?.AddLightning(earned);
             CurrencyManager.Instance?.AddDiamonds(1);
-            answerText.text   = "Secret:  " + string.Join("  ", _secret);
-            feedbackText.text = $"YOU WIN!  +{earned} lightning  +1 gem";
             RefreshInputSlots();
+            resultCard?.ShowWin(earned, 1, _secret.ToArray());
         }
         else if (outOfGuesses)
         {
@@ -254,9 +249,8 @@ public class ClassicUI : MonoBehaviour
             LightningManager.Instance?.StopNoReward();
             LivesManager.Instance?.LoseLife();
             CurrencyManager.Instance?.SpendLightning(1);
-            answerText.text   = "Secret:  " + string.Join("  ", _secret);
-            feedbackText.text = "Out of guesses!  -1 lightning";
             RefreshInputSlots();
+            resultCard?.ShowLoss("OUT OF GUESSES!", _secret.ToArray());
         }
         else
         {
@@ -299,7 +293,7 @@ public class ClassicUI : MonoBehaviour
     }
 
     // -------------------------------------------------------------------
-    // Bulk paint — long press on digit button
+    // Bulk paint
     // -------------------------------------------------------------------
 
     private void RegisterLongPressHandlers()
@@ -317,7 +311,6 @@ public class ClassicUI : MonoBehaviour
         }
     }
 
-    // Advances the annotation color of ALL history row slots showing this digit.
     private void BulkPaintDigit(int digit)
     {
         if (_submitted) return;

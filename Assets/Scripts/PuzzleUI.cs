@@ -20,7 +20,9 @@ public class PuzzleUI : MonoBehaviour
     [Header("Input UI")]
     [SerializeField] private Transform          inputSlotsGroup;
     [SerializeField] private TextMeshProUGUI    feedbackText;
-    [SerializeField] private TextMeshProUGUI    answerText;
+
+    [Header("Result Card")]
+    [SerializeField] private ResultCard resultCard;
 
     [Header("Regen")]
     [SerializeField] private TextMeshProUGUI regenTimerText;
@@ -56,14 +58,10 @@ public class PuzzleUI : MonoBehaviour
     private bool       _submitted    = false;
     private bool       _skipPending  = false;
 
-    private List<SlotCell>      _inputSlots      = new List<SlotCell>();
-    private List<ClueRow>       _clueRows        = new List<ClueRow>();
-
-    // Cached long press buttons — used in AddDigit to suppress digit insert after long press.
-    private LongPressButton[]   _longPressButtons = new LongPressButton[0];
-
-    // Tracks the current annotation color index per digit (0–9) for bulk painting.
-    private int[] _digitColorIndex = new int[10];
+    private List<SlotCell>    _inputSlots       = new List<SlotCell>();
+    private List<ClueRow>     _clueRows         = new List<ClueRow>();
+    private LongPressButton[] _longPressButtons = new LongPressButton[0];
+    private int[]             _digitColorIndex  = new int[10];
 
     // -------------------------------------------------------------------
     // Lifecycle
@@ -86,6 +84,11 @@ public class PuzzleUI : MonoBehaviour
             CurrencyManager.Instance.OnCurrencyChanged += UpdateCurrencyHUD;
 
         RegisterLongPressHandlers();
+
+        // Wire result card callbacks — Play Again = new puzzle, Main Menu = no life penalty
+        resultCard?.Init(
+            onPlayAgain: () => CheckLivesAndStart(),
+            onMainMenu:  () => SceneManager.LoadScene("MainMenu"));
 
         noLivesPanel.SetActive(false);
         CheckLivesAndStart();
@@ -138,7 +141,6 @@ public class PuzzleUI : MonoBehaviour
         _submitted   = false;
         _skipPending = false;
         feedbackText.text = "";
-        answerText.text   = "";
 
         System.Array.Clear(_digitColorIndex, 0, _digitColorIndex.Length);
 
@@ -193,9 +195,6 @@ public class PuzzleUI : MonoBehaviour
     {
         if (_submitted) return;
 
-        // If any long press button just fired, suppress the digit insert.
-        // The long press already did its job (bulk paint) — we don't also want
-        // the digit to land in the answer slot on the same PointerUp.
         foreach (var lpb in _longPressButtons)
             if (lpb.LongPressConsumed) return;
 
@@ -237,24 +236,22 @@ public class PuzzleUI : MonoBehaviour
         for (int i = 0; i < codeLength; i++)
             if (_slotValues[i] != _secret[i]) { correct = false; break; }
 
-        answerText.text = "Secret:  " + string.Join("  ", _secret);
+        RefreshInputSlots();
 
         if (correct)
         {
             int earned = LightningManager.Instance?.StopAndCollect() ?? 0;
             CurrencyManager.Instance?.AddLightning(earned);
             CurrencyManager.Instance?.AddDiamonds(1);
-            feedbackText.text = $"YOU WIN!  +{earned}⚡  +1💎";
+            resultCard?.ShowWin(earned, 1, _secret.ToArray());
         }
         else
         {
             LightningManager.Instance?.StopNoReward();
             LivesManager.Instance?.LoseLife();
             CurrencyManager.Instance?.SpendLightning(1);
-            feedbackText.text = "WRONG! Better luck next time.  -1⚡";
+            resultCard?.ShowLoss("WRONG!", _secret.ToArray());
         }
-
-        RefreshInputSlots();
     }
 
     public void NewPuzzle()
@@ -267,7 +264,7 @@ public class PuzzleUI : MonoBehaviour
             LightningManager.Instance?.StopNoReward();
             LivesManager.Instance?.LoseLife();
             CurrencyManager.Instance?.SpendLightning(1);
-            feedbackText.text = "Skipped! -1 life  -1⚡";
+            feedbackText.text = "Skipped! -1 life";
             StartCoroutine(DelayThen(1.5f, CheckLivesAndStart));
         }
         else
@@ -303,7 +300,6 @@ public class PuzzleUI : MonoBehaviour
         }
     }
 
-    // Advances the annotation color of ALL clue slots showing this digit by one step.
     private void BulkPaintDigit(int digit)
     {
         if (_submitted) return;

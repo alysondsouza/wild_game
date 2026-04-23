@@ -11,7 +11,7 @@ using UnityEngine.EventSystems;
 //               can suppress the digit insert that would fire on PointerUp.
 public class LongPressButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
 {
-    public float HoldDuration = 0.4f;
+    public float HoldDuration = 0.2f;
 
     // Fired when the button is held for HoldDuration seconds.
     public event Action OnLongPress;

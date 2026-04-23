@@ -3472,7 +3472,7 @@ MonoBehaviour:
   totalLightningText: {fileID: 1156261147}
   diamondText: {fileID: 1200909021}
   modeActiveColor: {r: 0.78431374, g: 0.8627451, b: 1, a: 1}
-  modeDisabledColor: {r: 0.627451, g: 0.627451, b: 0.627451, a: 1}
+  modeInactiveColor: {r: 0.63, g: 0.63, b: 0.63, a: 1}
   iconActiveColor: {r: 1, g: 1, b: 1, a: 1}
   iconInactiveColor: {r: 0.3, g: 0.3, b: 0.3, a: 0.5}
 --- !u!1 &2016423330
